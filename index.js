@@ -1,10 +1,12 @@
 const { Keystone } = require('@keystonejs/keystone');
 const { PasswordAuthStrategy } = require('@keystonejs/auth-password');
-const { Text, Checkbox, Password, File } = require('@keystonejs/fields');
+const { Text, Checkbox, Password, File, Relationship } = require('@keystonejs/fields');
+const { AuthedRelationship } = require('@keystonejs/fields-authed-relationship');
 const { GraphQLApp } = require('@keystonejs/app-graphql');
 const { AdminUIApp } = require('@keystonejs/app-admin-ui');
 const initialiseData = require('./initial-data');
 const { LocalFileAdapter } = require('@keystonejs/file-adapters');
+const { StaticApp } = require('@keystonejs/app-static');
 
 const { MongooseAdapter: Adapter } = require('@keystonejs/adapter-mongoose');
 
@@ -44,7 +46,10 @@ const userIsAdminOrOwner = auth => {
 const userIsRedac = ({ authentication: { item: user } }) => Boolean(user && user.isRedac);
 const userIsWritter = ({ authentication: { item: user } }) => Boolean(user && user.isWritter);
 
-const access = { userIsAdmin, userOwnsItem, userIsAdminOrOwner, userIsRedac, userIsWritter };
+const userCanPost = ({ authentication: { item: user } }) => Boolean(user && (user.isRedac || user.isAdmin));
+const userCanWrite = ({ authentication: { item: user } }) => Boolean(user && (user.isRedac || user.isAdmin || user.isWritter));
+
+const access = { userIsAdmin, userOwnsItem, userIsAdminOrOwner, userIsRedac, userIsWritter, userCanPost, userCanWrite };
 
 keystone.createList('User', {
   fields: {
@@ -97,14 +102,20 @@ keystone.createList('Article', {
     resume: { type: Text },
     image: { type: File, adapter: fileAdapter },
     content: { type: Text },
-    category: {type: Relationship, ref: 'Category', schemaDoc: 'Réalisateur du film'},
+    category: { type: Relationship, ref: 'Category', many: true },
+    author: { type: AuthedRelationship, ref: 'User' },
+    publish: {
+      type: Checkbox,
+      access: {
+        update: access.userCanPost,
+      },
+    },
   },
   // List-level access controls
   access: {
-    read: access.userIsAdminOrOwner,
-    update: access.userIsAdminOrOwner,
-    create: access.userIsAdmin,
-    delete: access.userIsAdmin,
+    update: access.userCanWrite,
+    create: access.userCanWrite,
+    delete: access.userCanWrite,
     auth: true,
   },
 });
@@ -115,10 +126,10 @@ keystone.createList('Category', {
   },
   // List-level access controls
   access: {
-    read: access.userIsAdminOrOwner,
-    update: access.userIsAdminOrOwner,
-    create: access.userIsAdmin,
-    delete: access.userIsAdmin,
+    read: access.userCanPost,
+    update: access.userCanPost,
+    create: access.userCanPost,
+    delete: access.userCanPost,
     auth: true,
   },
 });
@@ -132,6 +143,7 @@ module.exports = {
   keystone,
   apps: [
     new GraphQLApp(),
+    new StaticApp({ path: '/', src: 'public' }),
     new AdminUIApp({
       enableDefaultRoute: true,
       authStrategy,
