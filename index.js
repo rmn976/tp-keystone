@@ -45,7 +45,11 @@ const userIsAdminOrOwner = auth => {
 
 const userCanPostOrOwner = auth => {
   const canPost = access.userCanPost(auth);
-  const isOwner = access.userOwnsItem(auth);
+  if (!access.userOwnsItem(auth)) {
+    const isOwner = false;
+  } else {
+    const isOwner = true;
+  }
   return canPost ? canPost : isOwner;
 };
 
@@ -54,7 +58,7 @@ const userIsWritter = ({ authentication: { item: user } }) => Boolean(user && us
 
 const userCanPost = ({ authentication: { item: user } }) => Boolean(user && (user.isRedac || user.isAdmin));
 
-const access = { userIsAdmin, userOwnsItem, userIsAdminOrOwner, userIsRedac, userIsWritter, userCanPost, userCanPostOrOwner };
+const access = { userIsAdmin, userOwnsItem, userIsAdminOrOwner, userIsRedac, userIsWritter, userCanPost };
 
 keystone.createList('User', {
   fields: {
@@ -65,6 +69,7 @@ keystone.createList('User', {
     },
     isAdmin: {
       type: Checkbox,
+      defaultValue: false,
       // Field-level access controls
       // Here, we set more restrictive field access so a non-admin cannot make themselves admin.
       access: {
@@ -73,6 +78,7 @@ keystone.createList('User', {
     },
     isRedac: {
       type: Checkbox,
+      defaultValue: false,
       // Field-level access controls
       // Here, we set more restrictive field access so a non-admin cannot make themselves admin.
       access: {
@@ -81,6 +87,7 @@ keystone.createList('User', {
     },
     isWritter: {
       type: Checkbox,
+      defaultValue: false,
       // Field-level access controls
       // Here, we set more restrictive field access so a non-admin cannot make themselves admin.
       access: {
@@ -111,6 +118,7 @@ keystone.createList('Article', {
     author: { type: AuthedRelationship, ref: 'User' },
     publish: {
       type: Checkbox,
+      defaultValue: false,
       access: {
         update: access.userCanPost,
       },
@@ -118,9 +126,7 @@ keystone.createList('Article', {
   },
   // List-level access controls
   access: {
-    update: access.userCanPostOrOwner,
-    create: access.userCanPostOrOwner,
-    delete: access.userCanPostOrOwner,
+    delete: access.userCanPost,
     auth: true,
   },
 });

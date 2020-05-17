@@ -15,9 +15,21 @@ function graphql(query, variables = {}) {
     });
 }
 
+// QUERY
+
 const GET_ARTICLES = `
     query GetArticles {
       allArticles(where: { publish: true }) {
+        id
+        title
+        resume
+      }
+    }
+  `;
+
+const GET_CATEGORY = `
+    query GetArticles($name: String!) {
+      allArticles(where: { category_some: {name: $name} }) {
         id
         title
         resume
@@ -38,9 +50,12 @@ const GET_ARTICLE = `
       Article(where: { id: $id }) {
         title
         content
+        image{filename}
       }
     }
   `;
+
+// CREATION DE LA LISTE DES ARTICLES
 
 function createArticleItem(article) {
 
@@ -80,17 +95,19 @@ function fetchData() {
         .then(function(result) {
             // Clear any existing elements from the list
             document.querySelector('.results').innerHTML = '';
+            document.querySelector('#accueil').addEventListener('click', () => { fetchData() });
 
             // Recreate the list and append it to the .results div
             const list = createList(result.data);
             document.querySelector('.results').appendChild(list);
-            document.querySelector('#accueil').addEventListener('click', () => { fetchData() });
         })
         .catch(function(error) {
             console.log(error);
             document.querySelector('.results').innerHTML = '<p>Error</p>';
         });
 }
+
+// CREATION DU DROPDOWN DE LA NAVBAR POUR LES CATEGORIES
 
 function createDropdown(data) {
     // Create the list
@@ -108,6 +125,7 @@ function createCategoryItem(category) {
     categoryItem.classList.add('dropdown-item');
     categoryItem.setAttribute('href', '#');
     categoryItem.innerHTML = category.name;
+    categoryItem.addEventListener('click', () => { fetchData4(category.name) });
 
     return categoryItem;
 }
@@ -128,6 +146,8 @@ function fetchData3() {
 }
 
 
+// CREATION D'UN ARTICLE ENTIER
+
 function createArticleItem2(article) {
 
     // Create the item
@@ -139,7 +159,14 @@ function createArticleItem2(article) {
     articleTitle.innerHTML = article.title;
     articleItem.appendChild(articleTitle);
 
-    const articleContent = document.createElement('h3');
+    if(article.image) {
+        const imageTitle = document.createElement('img');
+        articleTitle.classList.add('img-item');
+        imageTitle.setAttribute('src', './files/' + article.image.filename);
+        articleItem.appendChild(imageTitle);
+    }
+
+    const articleContent = document.createElement('p');
     articleContent.innerHTML = article.content;
     articleItem.appendChild(articleContent);
 
@@ -151,6 +178,8 @@ function fetchData2(id) {
         .then(function(result) {
             // Clear any existing elements from the list
             document.querySelector('.results').innerHTML = '';
+            console.log(result);
+            console.log(result.data);
 
             // Recreate the list and append it to the .results div
             const article = createArticleItem2(result.data.Article);
@@ -161,6 +190,28 @@ function fetchData2(id) {
             document.querySelector('.results').innerHTML = '<p>Error</p>';
         });
 }
+
+// CREATION DES ARTICLES D'UNE CATEGORIE
+
+function fetchData4(category) {
+    graphql(GET_CATEGORY, { name: category })
+        .then(function(result) {
+            // Clear any existing elements from the list
+            document.querySelector('.results').innerHTML = '';
+            console.log(result);
+            console.log(result.data);
+
+            // Recreate the list and append it to the .results div
+            const list = createList(result.data);
+            document.querySelector('.results').appendChild(list);
+        })
+        .catch(function(error) {
+            console.log(error);
+            document.querySelector('.results').innerHTML = '<p>Error</p>';
+        });
+}
+
+// CREATION DU HTML DE BASE
 
 document.getElementById('articles').parentNode.innerHTML = `
 <div class="app">
@@ -175,9 +226,11 @@ document.getElementById('articles').parentNode.innerHTML = `
               <a class="dropdown-item" href="#">Aucune catégorie</a>
             </div>
         </li>  
+        <li class="align-self-end">
+            <a class="nav-link" role="button" href="/admin">Admin</a>
+        </li>
     </ul>
     <div class="form-wrapper">
-        <h2 class="app-heading">Liste des articles</h2>
         <div class="results">
         <p>Loading...</p>
         </div>
