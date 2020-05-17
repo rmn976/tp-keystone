@@ -43,13 +43,18 @@ const userIsAdminOrOwner = auth => {
   return isAdmin ? isAdmin : isOwner;
 };
 
+const userCanPostOrOwner = auth => {
+  const canPost = access.userCanPost(auth);
+  const isOwner = access.userOwnsItem(auth);
+  return canPost ? canPost : isOwner;
+};
+
 const userIsRedac = ({ authentication: { item: user } }) => Boolean(user && user.isRedac);
 const userIsWritter = ({ authentication: { item: user } }) => Boolean(user && user.isWritter);
 
 const userCanPost = ({ authentication: { item: user } }) => Boolean(user && (user.isRedac || user.isAdmin));
-const userCanWrite = ({ authentication: { item: user } }) => Boolean(user && (user.isRedac || user.isAdmin || user.isWritter));
 
-const access = { userIsAdmin, userOwnsItem, userIsAdminOrOwner, userIsRedac, userIsWritter, userCanPost, userCanWrite };
+const access = { userIsAdmin, userOwnsItem, userIsAdminOrOwner, userIsRedac, userIsWritter, userCanPost, userCanPostOrOwner };
 
 keystone.createList('User', {
   fields: {
@@ -113,9 +118,9 @@ keystone.createList('Article', {
   },
   // List-level access controls
   access: {
-    update: access.userCanWrite,
-    create: access.userCanWrite,
-    delete: access.userCanWrite,
+    update: access.userCanPostOrOwner,
+    create: access.userCanPostOrOwner,
+    delete: access.userCanPostOrOwner,
     auth: true,
   },
 });
@@ -126,7 +131,6 @@ keystone.createList('Category', {
   },
   // List-level access controls
   access: {
-    read: access.userCanPost,
     update: access.userCanPost,
     create: access.userCanPost,
     delete: access.userCanPost,
